@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hello, World!</title>
+    <style>
+        body { margin: 0; font-family: Arial, sans-serif; background: #f4f4f4; }
+        header { background: #6200ea; color: white; text-align: center; padding: 15px; }
+        nav { display: flex; flex-wrap: wrap; justify-content: space-around; background: #3700b3; }
+        nav button { background: none; border: none; color: white; padding: 10px; font-size: 14px; cursor: pointer; }
+        section { display: none; padding: 15px; }
+        section.active { display: block; }
+        .form input, .form textarea, .form button { width: 100%; padding: 10px; margin: 8px 0; background: #6200ea; color: white; border: none; }
+        .card { background: white; padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .card img { width: 100%; max-height: 200px; object-fit: cover; border-radius: 4px; cursor: pointer; }
+        .reactions button { margin: 4px 3px; padding: 5px 10px; }
+        .comment-box { display: flex; margin-top: 5px; }
+        .comment-box input { flex: 1; margin-right: 5px; }
+        .comment { background: #eee; padding: 5px; margin-top: 5px; border-radius: 4px; }
+        .download-button { margin-top: 8px; display: inline-block; }
+        /* Style for the modal */
+        .modal {
+            display: none; 
+            position: fixed; 
+            z-index: 999; 
+            left: 0; 
+            top: 0; 
+            width: 100%; 
+            height: 100%; 
+            overflow: auto; 
+            background-color: rgb(0, 0, 0); 
+            background-color: rgba(0, 0, 0, 0.9); 
+            padding-top: 60px; 
+        }
+        .modal-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+        }
+        .close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header><h1>Partage</h1></header>
+    <nav>
+        <button onclick="showSection('accueil')">Accueil</button>
+        <button onclick="showSection('publication')">faire une partage</button>
+        <button onclick="showSection('recherche')">Recherche des partage</button>
+    </nav>
+    <section id="accueil" class="active">
+        <h2>Les partages</h2>
+        <div id="posts"></div>
+    </section>
+    <section id="publication">
+        <h2>Nouvelle publication</h2>
+        <div class="form">
+            <input id="auteur" placeholder="Nom de l'auteur" />
+            <input id="facebook" placeholder="Lien Facebook (optionnel)" />
+            <input id="insta" placeholder="Lien Instagram (optionnel)" />
+            <input id="imageFile" type="file" accept="image/*" onchange="chargerImage(event)" />
+            <textarea id="description" placeholder="Description de l'œuvre"></textarea>
+            <button onclick="publier()">Publier</button>
+        </div>
+    </section>
+    <section id="recherche">
+        <h2>Rechercher une publication</h2>
+        <input id="query" placeholder="Nom de l'auteur ou mot-clé..." />
+        <button onclick="rechercher()">Rechercher</button>
+        <div id="resultats"></div>
+    </section>
+
+    <!-- Modal for displaying image -->
+    <div id="myModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="img01" />
+    </div>
+    <script>
+        const POSTS_KEY = "posts"
+        
+        let posts = JSON.parse(localStorage.getItem(POSTS_KEY) || "[]");
+        let imageData = "";
+        let connecté// Corrected variable name
+        
+        function showSection(id) { // Fixed signature to accept 'id'
+            document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+            document.getElementById(id).classList.add("active");
+            if (id === "accueil") afficherPublications();
+        }
+        
+        function chargerImage(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function (e) {
+                imageData = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        
+        function publier() {
+            const p = { // Fixed object declaration
+                auteur: document.getElementById("auteur").value,
+                facebook: document.getElementById("facebook").value,
+                insta: document.getElementById("insta").value,
+                image: imageData,
+                description: document.getElementById("description").value,
+                commentaires: [],
+                
+            };
+        
+            posts.push(p);
+            localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+            imageData = ""; // Reset imageData after publish
+            alert("Publication ajoutée !");
+            showSection("accueil");
+            afficherPublications();
+        }
+        
+        function afficherPublications() {
+            const cont = document.getElementById("posts");
+            let content = "";
+            posts.forEach((p, i,index) => {
+                content += `<div class="card">
+                    <img src="${p.image || '#'}" alt="Image de ${p.auteur}" onclick="openModal('${p.image}')" />
+                    <p><strong>${p.auteur || 'Inconnu'}</strong></p>
+                    <p>${p.description || 'Aucune description'}</p>
+                    ${p.facebook ? `<p><a href="${p.facebook}" target="_blank">Facebook</a></p>` : ""}
+                    ${p.insta ? `<p><a href="${p.insta}" target="_blank">Instagram</a></p>` : ""}
+                    <a href="${p.image}" download class="download-button">Télécharger l'image</a>
+                    <button onclick="supprimerPublication(${index})">Supprimer la publication</button>
+                    <div class="comment-box">
+                        <input id="comment-${i}" placeholder="Écrire un commentaire..." />
+                        <button onclick="commenter(${i})">Envoyer</button>
+                    </div>
+                    <div id="commentaires-${i}">
+                        ${p.commentaires.map(c => `<div class="comment">${c}</div>`).join("")}
+                    </div>
+                    ${connecté && connecté.nom === p.auteur ? `<button onclick="supprimerPublication(${i})">Supprimer</button>` : ""}
+                </div>`;
+            });
+            cont.innerHTML = content;
+        }
+        
+        function supprimerPublication(index) {
+      if (confirm('Êtes-vous sûr de vouloir supprimer cette publication ?')) {
+        posts.splice(index, 1);
+        localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+        afficherPublications();
+      }
+    }
+
+        function reagir(index, type) {
+            posts[index].reactions[type]++;
+            localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+            afficherPublications();
+        }
+
+        function commenter(index) {
+            const commentaire = document.getElementById(`comment-${index}`).value;
+            if (commentaire) {
+                posts[index].commentaires.push(commentaire);
+                localStorage.setItem(POSTS_KEY, JSON.stringify(posts));
+                afficherPublications();
+                document.getElementById(`comment-${index}`).value = "";
+            }
+        }
+
+        function rechercher() {
+            const query = document.getElementById("query").value.toLowerCase();
+            const resultats = posts.filter(p => p.auteur.toLowerCase().includes(query) || p.description.toLowerCase().includes(query));
+            const cont = document.getElementById("resultats");
+            let content = "";
+            resultats.forEach((p) => {
+                content += `<div class="card">
+                    <img src="${p.image || '#'}" alt="Image de ${p.auteur}" />
+                    <p><strong>${p.auteur || 'Inconnu'}</strong></p>
+                    <p>${p.description || 'Aucune description'}</p>
+                </div>`;
+            });
+            cont.innerHTML = content;
+        }
+
+        function openModal(image) {
+            const modal = document.getElementById("myModal");
+            const img = document.getElementById("img01");
+            modal.style.display = "block";
+            img.src = image;
+        }
+
+        function closeModal() {
+            const modal = document.getElementById("myModal");
+            modal.style.display = "none";
+        }
+
+        window.onload = function() {
+            afficherPublications();
+        };
+    </script>
+</body>
+</html>

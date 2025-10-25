@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Post'Art</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f4f4f4;
+    }
+    header {
+      background: #6200ea;
+      color: white;
+      padding: 15px;
+      text-align: center;
+    }
+    nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      background: #3700b3;
+    }
+    nav button {
+      background: none;
+      border: none;
+      color: white;
+      padding: 10px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+    section { display: none; padding: 15px; }
+    section.active { display: block; }
+    .form input, .form textarea, .form button {
+      width: 100%;
+      padding: 10px;
+      margin-top: 8px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      box-sizing: border-box;
+    }
+    .form button {
+      background: #6200ea;
+      color: white;
+      border: none;
+    }
+    .card {
+      background: white;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+    }
+    .card img {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      border-radius: 4px;
+    }
+    .reactions button {
+      margin: 5px 3px;
+      padding: 5px 10px;
+    }
+    .comment-box {
+      display: flex; 
+      margin-top: 5px; 
+    }
+    .comment-box input { 
+        flex: 1; 
+        margin-right: 5px; 
+    }
+    .comment {
+        background: #eee; 
+        padding: 5px; 
+        margin-top: 5px; 
+        border-radius: 4px;  
+     }
+   </style>
+</head>
+<body>
+
+<header><h1>Post'Art</h1></header>
+
+<nav>
+    <button onclick="showSection('accueil')">Accueil</button>
+    <button onclick="showSection('inscription')">Inscription</button>
+    <button onclick="showSection('connexion')">Connexion</button>
+    <button onclick="showSection('publication')">Publication</button>
+    <button onclick="showSection('recherche')">Recherche</button>
+</nav>
+
+<!-- ACCUEIL -->
+<section id="accueil" class="active">
+<h2>Publications</h2>
+<div id="posts"></div>
+</section>
+
+<!-- INSCRIPTION -->
+<section id="inscription">
+<h2>Inscription</h2>
+<div class="form">
+<input id="nom" placeholder="Nom complet" />
+<input id="email" type="email" placeholder="Email" />
+<input id="mdp" type="password" placeholder="Mot de passe" />
+<button onclick="inscrire()">S'inscrire</button>
+</div>
+</section>
+
+<!-- CONNEXION -->
+<section id="connexion">
+<h2>Connexion</h2>
+<div class="form">
+<input id="nomConnect" placeholder="Nom" />
+<input id="emailConnect" type="email" placeholder="Email" />
+<input id="mdpConnect" type="password" placeholder="Mot de passe" />
+<button onclick="connecter()">Se connecter</button>
+</div>
+</section>
+
+<!-- PUBLICATION -->
+<section id="publication">
+<h2>Nouvelle publication</h2>
+<div class="form">
+<input id="auteur" placeholder="Nom de l'auteur" />
+<input id="facebook" placeholder="Lien Facebook (optionnel)" />
+<input id="insta" placeholder="Lien Instagram (optionnel)" />
+<input type='file' id='image' accept='image/*' />
+<img id='preview' style='display:none;margin-top:10px;' alt='Aperçu de l\'image' />
+<textarea id='description' placeholder='Description de l\'œuvre'></textarea>
+<button onclick='publier()'>Publier</button>
+</div>
+
+<script>
+// Using let/const instead of var for block scoping
+let utilisateurs = JSON.parse(localStorage.getItem("utilisateurs") || "[]");
+let posts = JSON.parse(localStorage.getItem("posts") || "[]");
+let connecté = null;
+
+document.getElementById('image').addEventListener('change', function(event) {
+    const file = event.target.files[0];
+    const preview = document.getElementById('preview');
+    
+    if (file) {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            preview.src = e.target.result; // Set preview source
+            preview.style.display = 'block'; // Show the image
+        };
+        reader.readAsDataURL(file); // Read file as data URL
+    }
+});
+
+function showSection(id) {
+document.querySelectorAll("section").forEach(s => s.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+if (id === "accueil") afficherPublications();
+}
+
+function inscrire() {
+const nom = document.getElementById("nom").value.trim();
+const emailVal = document.getElementById("email").value.trim();
+const mdpVal = document.getElementById("mdp").value.trim();
+if (!nom || !emailVal || !mdpVal) return alert("Remplis tous les champs !");
+
+const existingUser = utilisateurs.find(u => u.email === emailVal);
+if (existingUser) return alert("Cet email est déjà utilisé.");
+
+utilisateurs.push({ nom, email : emailVal, mdp : mdpVal });
+localStorage.setItem("utilisateurs", JSON.stringify(utilisateurs));
+alert("Tu es inscrite !");
+showSection("connexion");
+}
+
+function connecter() {
+const nomVal = document.getElementById("nomConnect").value.trim();
+const emailVal = document.getElementById("emailConnect").value.trim();
+const mdpVal = document.getElementById("mdpConnect").value.trim();
+const u = utilisateurs.find(u => u.email === emailVal && u.mdp === mdpVal && u.nom === nomVal);
+if (!u) return alert("Inscris-toi d'abord !");
+connecté = u; 
+alert("Connexion réussie !");
+showSection("accueil");
+}
+
+function publier() {
+if (!connecté) return alert('Connecte-toi pour publier !');
+const p = {
+auteur : document.getElementById('auteur').value,
+facebook : document.getElementById('facebook').value,
+insta : document.getElementById('insta').value,
+Description : document.getElementById('description').value,
+image : document.getElementById('preview').src, // Store image source here
+commentaires : [],
+reactions : { adore : 0, like : 0, solidaire : 0, dislike : 0, triste : 0 }
+};
+posts.push(p);
+localStorage.setItem("posts", JSON.stringify(posts));
+alert("Publication ajoutée !");
+showSection('accueil');
+afficherPublications();
+}
+
+function afficherPublications() {
+const cont = document.getElementById("posts");
+cont.innerHTML = "";
+posts.forEach((p, i) => {
+let card = `<div class='card'>
+<img src="${p.image}" alt='Image' />
+<p><strong>${p.auteur}</strong></p>
+<p>${p.description}</p>${p.facebook ? `<p><a href="${p.facebook}" target="_blank">Facebook</a></p>` : ""}${p.insta ? `<p><a href="${p.insta}" target="_blank">Instagram</a></p>` : ""}
+<div class='reactions'>
+<button onclick='reagir(${i}, "adore")'>❤️ ${p.reactions.adore}</button>
+<button onclick='reagir(${i}, "like")'>👍 ${p.reactions.like}</button>
+<button onclick='reagir(${i}, "solidaire")'>🤝 ${p.reactions.solidaire}</button>
+<button onclick='reagir(${i}, "dislike")'>👎 ${p.reactions.dislike}</button>
+<button onclick='reagir(${i}, "triste")'>😢 ${p.reactions.triste}</button></div>
+<div class='comment-box'>
+<input id='comment-${i}' placeholder='Écrire un commentaire...' />
+<button onclick='commenter(${i})'>Envoyer</button></div>${(
+           p.commentaires.map(c => `<div class='comment'>${c}</div>`).join('')
+        )}
+          </div>`;
+        cont.innerHTML += card;  
+       });
+}
+
+function commenter(index) {
+const input = document.getElementById(`comment-${index}`);
+const text = input.value.trim();
+if (!text) return; 
+posts[index].commentaires.push(text);
+localStorage.setItem("posts", JSON.stringify(posts));
+afficherPublications();
+}
+
+function reagir(index, type) {
+posts[index].reactions[type]++;
+localStorage.setItem("posts", JSON.stringify(posts));
+afficherPublications();
+}
+
+function rechercher() {
+const q = document.getElementById('query').value.toLowerCase();
+const res = posts.filter(p =>
+          p.auteur.toLowerCase().includes(q) ||
+          p.description.toLowerCase().includes(q)
+);
+const resultats = document.getElementById("resultats");
+if (res.length === 0) return resultats.innerHTML = "<p>Publication non trouvée.</p>";
+resultats.innerHTML = "";
+res.forEach(p => {
+resultats.innerHTML += `
+<div class='card'>
+<img src="${p.image}" alt='Image' />
+<p><strong>${p.auteur}</strong></p><
+<p>${p.description}</p>${( 
+     p.facebook ? `<p><a href="${ p.facebook}" target="_blank">Facebook</a></p>`:""
+)}${( 
+     p.insta ? `<p><a href="${ p.insta}" target="_blank">Instagram </a></p>`:""
+)}
+        </div>`;
+     });
+}
+
+// Affichage des publications au chargement si section Accueil active
+window.onload = () => { if(document.getElementById('accueil').classList.contains("active")) afficherPublications(); };
+
+</script>
+
+</body>
+</html>
